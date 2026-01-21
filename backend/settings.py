@@ -31,9 +31,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
     'drf_spectacular',
     'products',
+    'rest_framework',
     'rest_framework_simplejwt',
     'accounts',
 ]
@@ -59,7 +59,10 @@ SPECTACULAR_SETTINGS={
 }
 SIMPLE_JWT={
     'ACCESS_TOKEN_LIFETIME':timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME':timedelta(days=1),     
+    'REFRESH_TOKEN_LIFETIME':timedelta(days=1),
+    'USER_ID_FIELD':'id',
+    'USER_ID_CLAIM':'user_id',
+    'AUTH_HEADER_TYPES':['Bearer'],     
 }
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

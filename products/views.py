@@ -5,7 +5,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView 
 from drf_spectacular.utils import extend_schema 
 from rest_framework.permissions import IsAuthenticated,AllowAny
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+User = get_user_model()
 class ProductList(APIView):
     @extend_schema(
             responses=ProductSerializer(many=True)
@@ -30,7 +31,7 @@ class UserRegistration(APIView):
     permission_classes=[AllowAny]
     @extend_schema(
         request=UserSerializer,
-        responses=UserSerializer
+        responses={201: UserSerializer,400: None}
     )
     def post(self,request):
         serializer=UserSerializer(data=request.data)
