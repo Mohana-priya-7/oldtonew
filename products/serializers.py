@@ -11,13 +11,11 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at']
 
 class UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True,required=True,style={'input_type': 'password'})
+    password = serializers.CharField(write_only=True,required=True,validators=[validate_strong_password],style={'input_type':'password'})
     class Meta:
         model=User
         fields=('username','email','password')
         extra_kwargs={'email':{'required':True}}
-        def validate_password(self, data):
-            return validate_strong_password(data)
         def create(self, validated_data):
             user=User.objects.create(
                 username=validated_data['username'],
