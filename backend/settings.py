@@ -37,6 +37,14 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'accounts',
 ]
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_HOST='smtp.gmail.com'
+EMAIL_PORT=587
+EMAIL_USE_TLS=True 
+EMAIL_HOST_USER='s.mohanapriya2174@gmail.com'
+EMAIL_HOST_PASSWORD='aqnr ugss mnhk cpre'
+
 AUTH_USER_MODEL='accounts.CustomUser'
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
