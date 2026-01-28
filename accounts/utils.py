@@ -1,9 +1,9 @@
-from datetime import timedelta,datetime
+from datetime import timedelta
+from django.utils import timezone
 from django.conf import settings 
 import random,string 
 from django.core.mail import send_mail
-from django.utils import timezone
-from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from accounts import serializers 
 def generate_otp():
@@ -13,15 +13,15 @@ def generate_otp():
 
 def validate_strong_password(password):
     if len(password)<8:
-        raise serializers.ValidationError("Password must be at least 8 characters long.")
+        raise ValidationError("Password must be at least 8 characters long.")
     if not any(char.isupper() for char in password):
-        raise serializers.ValidationError("Password must contain at least one uppercase letter.")
+        raise ValidationError("Password must contain at least one uppercase letter.")
     if not any(char.islower() for char in password):
-        raise serializers.ValidationError("Password must contain at least one lowercase letter.")
+        raise ValidationError("Password must contain at least one lowercase letter.")
     if not any(char.isdigit() for char in password):
-        raise serializers.ValidationError("Password must contain at least one digit.")
+        raise ValidationError("Password must contain at least one digit.")
     if not any(char in '@#$%^&*' for char in password):
-        raise serializers.ValidationError("Password must contain at least one special character (@#$%^&*).")
+        raise ValidationError("Password must contain at least one special character (@#$%^&*).")
     return password
 def send_otp_via_email(email, otp):
     try:
@@ -34,14 +34,14 @@ def send_otp_via_email(email, otp):
     except Exception as e:
         print(f"Error sending email: {e}")
         return False 
-def is_otp_valid(otp_created_time):
+def is_otp_valid(otp_created_time, expiry_minutes=10):
     """Checks if the entered OTP matches the user's OTP"""
-    if otp_created_time is None:
+    if not otp_created_time:
         return False   
-    return True
-    current_time = datetime.now() 
-    time_difference = current_time - otp_created_time
-    if time_difference.total_seconds()>120:
-        return True  # Expired
-    else:
-        return False  # Still valid
+    current_time = timezone.now()
+    otp_expiry_time = otp_created_time + timedelta(minutes=expiry_minutes)
+    return current_time <= otp_expiry_time
+"""This is a QUESTION, not a statement.
+It is asking:
+It is asking:
+❓ “Is the current time LESS THAN or EQUAL TO the expiry time?”"""

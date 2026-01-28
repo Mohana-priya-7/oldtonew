@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import ForgetPassword
 import random
-from django.contrib.auth import get_user_model
+from accounts.utils import is_otp_valid
 from django.core.mail import send_mail
 from drf_spectacular.utils import extend_schema
 
@@ -19,19 +19,20 @@ class ChangePasswordView(APIView):
         request=ChangePasswordSerializer, 
         responses={200: dict, 400: dict})
     def post(self, request):
-        serializer = ChangePasswordSerializer(data=request.data)
+        serializer = ChangePasswordSerializer(data=request.data)        
+        serializer.is_valid(raise_exception=True)
         user = request.user
-        if serializer.is_valid():
-            old_password = serializer.validated_data['old_password']
-            new_password = serializer.validated_data['new_password']
-            if not user.check_password(old_password):
-                return Response({"old_password": "Wrong password."}, status=status.HTTP_400_BAD_REQUEST)
-            user.set_password(new_password)
-            user.save()
-            return Response({"detail": "Password updated successfully."}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        old_password = serializer.validated_data['old_password']
+        new_password = serializer.validated_data['new_password']
+        if not user.check_password(old_password):
+            return Response({"error": "Old password is incorrect"}, status=status.HTTP_400_BAD_REQUEST)
+        if old_password == new_password:
+            return Response({"error": "New password cannot be the same as the old password"}, status=status.HTTP_400_BAD_REQUEST) 
+        user.set_password(new_password)
+        user.save()
+        return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
 
-class ForgePasswordView(APIView):
+class ForgetPasswordView(APIView):
     permission_classes = [AllowAny]
     @extend_schema(
         request=ForgotPasswordSerializer,
@@ -59,6 +60,7 @@ class ForgePasswordView(APIView):
             )
             return Response({"message": "OTP sent to email successfully"}, status=200)
         return Response(serializer.errors, status=400)
+    
 class VerifyOTPView(APIView):
     permission_classes = [AllowAny]
     @extend_schema(
@@ -67,18 +69,16 @@ class VerifyOTPView(APIView):
     )
     def post(self, request):
         serializer = VerifyOTPSerializer(data=request.data)
-        if serializer.is_valid():
-            email = serializer.validated_data['email']
-            otp = serializer.validated_data['otp']
-            try:
-                user = User.objects.get(email=email)
-                otp_obj = ForgetPassword.objects.filter(user=user, otp=otp, is_used=False).last()
-                if not otp_obj:
-                    return Response({"error": "Invalid OTP"}, status=400)
-                return Response({"message": "OTP verified successfully"}, status=200)
-            except User.DoesNotExist:
-                return Response({"error": "User not found"}, status=400)
-        return Response(serializer.errors, status=400)
+        serializer.is_valid(raise_exception=True)
+        otp = serializer.validated_data['otp']
+        otp_obj = ForgetPassword.objects.filter(otp=otp, is_used=False).order_by('-created_at').first()
+        if not otp_obj:
+            return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+        """ Check if OTP is expired """
+        if not is_otp_valid(otp_obj.created_at, expiry_minutes=10):
+            return Response({"error": "OTP has expired"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "OTP verified successfully"}, status=status.HTTP_200_OK)
+    
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
     @extend_schema(
@@ -87,20 +87,31 @@ class ResetPasswordView(APIView):
     )
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
-        if serializer.is_valid():
-            email = serializer.validated_data['email']
-            otp = serializer.validated_data['otp']
-            new_password = serializer.validated_data['new_password']
-            try:
-                user = User.objects.get(email=email)
-                otp_obj = ForgetPassword.objects.filter(user=user, otp=otp, is_used=False).last()
-                if not otp_obj:
-                    return Response({"error": "Invalid OTP"}, status=400)
-                user.set_password(new_password)
-                user.save()
-                otp_obj.is_used = True
-                otp_obj.save()
-                return Response({"message": "Password reset successfully"}, status=200)
-            except User.DoesNotExist:
-                return Response({"error": "User not found"}, status=400)
-        return Response(serializer.errors, status=400)
+        serializer.is_valid(raise_exception=True)
+        otp = serializer.validated_data['otp']
+        new_password = serializer.validated_data['new_password']
+        otp_obj = ForgetPassword.objects.filter(
+            otp=otp,
+            is_used=False
+        ).order_by('-created_at').first()
+        if not otp_obj:
+            return Response(
+                {"error": "Invalid or already used OTP"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        # ✅ OTP expiry check (good practice)
+        if not is_otp_valid(otp_obj.created_at):
+            return Response(
+                {"error": "OTP expired"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        user = otp_obj.user
+        user.set_password(new_password)
+        user.save()
+        # 🔥 STEP 4 IS HERE (THIS IS THE ANSWER)
+        otp_obj.is_used = True
+        otp_obj.save()
+        return Response(
+            {"message": "Password reset successfully"},
+            status=status.HTTP_200_OK
+        )

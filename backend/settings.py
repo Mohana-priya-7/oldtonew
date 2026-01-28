@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'accounts',
 ]
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST='smtp.gmail.com'
 EMAIL_PORT=587
 EMAIL_USE_TLS=True 
@@ -46,6 +46,7 @@ EMAIL_HOST_USER='s.mohanapriya2174@gmail.com'
 EMAIL_HOST_PASSWORD='aqnr ugss mnhk cpre'
 
 AUTH_USER_MODEL='accounts.CustomUser'
+
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES':(
@@ -96,10 +97,7 @@ TEMPLATES = [
         },
     },
 ]
-
 WSGI_APPLICATION = 'backend.wsgi.application'
-
-
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
