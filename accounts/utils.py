@@ -5,11 +5,10 @@ import random,string
 from django.core.mail import send_mail
 from rest_framework.exceptions import ValidationError
 
-from accounts import serializers 
 def generate_otp():
     """Generates a 6-digit numeric OTP"""
     otp=''.join(random.choices(string.digits,k=6))
-    return otp 
+    return otp  
 
 def validate_strong_password(password):
     if len(password)<8:
@@ -23,6 +22,7 @@ def validate_strong_password(password):
     if not any(char in '@#$%^&*' for char in password):
         raise ValidationError("Password must contain at least one special character (@#$%^&*).")
     return password
+
 def send_otp_via_email(email, otp):
     try:
         subject = 'Your OTP Code'

@@ -55,8 +55,7 @@ class ForgetPasswordView(APIView):
                 "Password Reset OTP",
                 f"Your OTP for password reset is: {otp}",
                 "noreply@example.com",
-                [email],
-                fail_silently=False,
+                [email],fail_silently=False,
             )
             return Response({"message": "OTP sent to email successfully"}, status=200)
         return Response(serializer.errors, status=400)
@@ -95,23 +94,13 @@ class ResetPasswordView(APIView):
             is_used=False
         ).order_by('-created_at').first()
         if not otp_obj:
-            return Response(
-                {"error": "Invalid or already used OTP"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": "Invalid or already used OTP"},status=status.HTTP_400_BAD_REQUEST)
         # ✅ OTP expiry check (good practice)
-        if not is_otp_valid(otp_obj.created_at):
-            return Response(
-                {"error": "OTP expired"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if not is_otp_valid(otp_obj.created_at):return Response({"error": "OTP expired"},status=status.HTTP_400_BAD_REQUEST)
         user = otp_obj.user
         user.set_password(new_password)
         user.save()
         # 🔥 STEP 4 IS HERE (THIS IS THE ANSWER)
         otp_obj.is_used = True
         otp_obj.save()
-        return Response(
-            {"message": "Password reset successfully"},
-            status=status.HTTP_200_OK
-        )
+        return Response({"message": "Password reset successfully"},status=status.HTTP_200_OK)

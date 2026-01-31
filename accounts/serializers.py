@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from accounts.utils import validate_strong_password
 User = get_user_model()
+
 class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = User.EMAIL_FIELD 
     """Configures the serializer to accept email instead of username for login"""
