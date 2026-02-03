@@ -102,5 +102,5 @@ class ResetPasswordView(APIView):
         user.save()
         # 🔥 STEP 4 IS HERE (THIS IS THE ANSWER)
         otp_obj.is_used = True
-        otp_obj.save()
+        otp_obj.save() 
         return Response({"message": "Password reset successfully"},status=status.HTTP_200_OK)
