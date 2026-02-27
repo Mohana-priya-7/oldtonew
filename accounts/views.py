@@ -5,9 +5,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import ForgetPassword
+from accounts.tasks import send_otp_email 
+from django.core.cache import cache 
 import random
+from .throttles import OTPThrottle
 from accounts.utils import is_otp_valid
-from django.core.mail import send_mail
 from drf_spectacular.utils import extend_schema
 
 class EmailTokenObtainPairView(TokenObtainPairView):
@@ -18,7 +20,7 @@ class ChangePasswordView(APIView):
     @extend_schema(
         request=ChangePasswordSerializer, 
         responses={200: dict, 400: dict})
-    def post(self, request):
+    def put(self, request):
         serializer = ChangePasswordSerializer(data=request.data)        
         serializer.is_valid(raise_exception=True)
         user = request.user
@@ -34,6 +36,7 @@ class ChangePasswordView(APIView):
 
 class ForgetPasswordView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [OTPThrottle]  #Apply OTPThrottle to this view
     @extend_schema(
         request=ForgotPasswordSerializer,
         responses={200: dict, 400: dict}
@@ -41,22 +44,17 @@ class ForgetPasswordView(APIView):
     def post(self, request):
         serializer = ForgotPasswordSerializer(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['email']
+            email = serializer.validated_data['email'].strip().lower()
             try:
                 user = User.objects.get(email=email)
             except User.DoesNotExist:
                 return Response({"error": "User with this email does not exist"}, status=400)
             otp = str(random.randint(100000, 999999))
-            ForgetPassword.objects.create(
-                user=user,
-                otp=otp
-            )
-            send_mail(
-                "Password Reset OTP",
-                f"Your OTP for password reset is: {otp}",
-                "noreply@example.com",
-                [email],fail_silently=False,
-            )
+            #Store in Redis (performance)
+            cache.set(f"otp:{email}",otp,timeout=300) #5 min
+            #Store in DB (audit / record)
+            ForgetPassword.objects.create(user=user,otp=otp)         
+            send_otp_email.delay(email,otp)
             return Response({"message": "OTP sent to email successfully"}, status=200)
         return Response(serializer.errors, status=400)
     
@@ -69,15 +67,34 @@ class VerifyOTPView(APIView):
     def post(self, request):
         serializer = VerifyOTPSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        otp = serializer.validated_data['otp']
-        otp_obj = ForgetPassword.objects.filter(otp=otp, is_used=False).order_by('-created_at').first()
-        if not otp_obj:
-            return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
-        """ Check if OTP is expired """
-        if not is_otp_valid(otp_obj.created_at, expiry_minutes=10):
-            return Response({"error": "OTP has expired"}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"message": "OTP verified successfully"}, status=status.HTTP_200_OK)
-    
+        email=request.data.get("email").strip().lower()
+        entered_otp=serializer.validated_data['otp']
+        
+        #Get OTP from Redis
+        stored_otp=cache.get(f"otp:{email}")
+        if not stored_otp:
+            return Response({"Error":"OTP expired or not found"},status=status.HTTP_400_BAD_REQUEST)
+        if stored_otp!=entered_otp:
+            return Response({"Error":"Invalid OTP"},status=status.HTTP_400_BAD_REQUEST)
+        otp_obj = ForgetPassword.objects.filter(
+            user__email=email,
+            otp=entered_otp,
+            is_used=False
+        ).order_by('-created_at').first()
+
+        if otp_obj:
+            otp_obj.is_used = True
+            otp_obj.save()
+
+        # 4️⃣ Delete OTP from Redis
+        cache.delete(f"otp:{email}")
+
+        return Response(
+            {"message": "OTP verified successfully"},
+            status=status.HTTP_200_OK
+        )
+
+
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
     @extend_schema(

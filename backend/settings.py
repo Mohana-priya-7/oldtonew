@@ -9,7 +9,6 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
-
 from pathlib import Path
 from datetime import timedelta
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -36,6 +35,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'accounts',
+    'django_celery_beat'
 ]
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -47,12 +47,25 @@ EMAIL_HOST_PASSWORD='aqnr ugss mnhk cpre'
 
 AUTH_USER_MODEL='accounts.CustomUser'
 
+#Throttling means:Limiting how many requests a user can make in a given time.Example:Only 5 login attempts per minute,Only 3 OTP requests per minute
+
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES':(
         'rest_framework_simplejwt.authentication.JWTAuthentication',),
     'DEFAULT_PERMISSION_CLASSES':(
-        'rest_framework.permissions.IsAuthenticated',),}
+        'rest_framework.permissions.IsAuthenticated',),
+    'DEFAULT_THROTTLE_CLASSES':
+    ['rest_framework.throttling.UserRateThrottle',
+     'rest_framework.throttling.AnonRateThrottle',],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '50/day',  # Authenticated users can make 50 requests per day
+        'anon': '20/day',  # Unauthenticated users can make 20 requests per day
+        'otp': '3/day',  # OTP requests are limited to 3 per day
+    'DEFAULT_PAGINATION_CLASS':'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE':5,    
+    }
+}
 SPECTACULAR_SETTINGS={
     'TITLE':'Product Management System ',
     'SERVE_INCLUDE_SCHEMA':False,
@@ -146,3 +159,30 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+#Celery Configuration
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+INSTALLED_APPS += ['django_celery_results']
+CELERY_RESULT_BACKEND = 'django-db'
+
+"""
+Setting                  	Meaning
+CELERY_BROKER_URL	        Redis is the middleman
+redis://127.0.0.1:6379/0	Redis running locally
+django-celery-results	    Stores task results in DB
+CELERY_RESULT_BACKEND	    Uses database for results
+"""
+
+CACHES={
+    'default':{
+        'BACKEND':"django_redis.cache.RedisCache",
+        "LOCATION":"redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'

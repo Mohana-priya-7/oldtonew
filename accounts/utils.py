@@ -34,7 +34,7 @@ def send_otp_via_email(email, otp):
     except Exception as e:
         print(f"Error sending email: {e}")
         return False 
-def is_otp_valid(otp_created_time, expiry_minutes=10):
+def is_otp_valid(otp_created_time, expiry_minutes=5):
     """Checks if the entered OTP matches the user's OTP"""
     if not otp_created_time:
         return False   

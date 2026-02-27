@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated,AllowAny
 from django.contrib.auth import get_user_model
 User = get_user_model()
 class ProductList(APIView):
+    permission_classes=[IsAuthenticated] 
     @extend_schema(
             responses=ProductSerializer(many=True)
     )
@@ -23,7 +24,7 @@ class ProductList(APIView):
     def post(self,request):
         serializer =ProductSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(created_by=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
