@@ -41,10 +41,11 @@ INSTALLED_APPS = [
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST='smtp.gmail.com'
 EMAIL_PORT=587
-EMAIL_USE_TLS=True 
+EMAIL_USE_TLS=True
+EMAIL_USE_SSL = False 
 EMAIL_HOST_USER='s.mohanapriya2174@gmail.com'
 EMAIL_HOST_PASSWORD='aqnr ugss mnhk cpre'
-
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 AUTH_USER_MODEL='accounts.CustomUser'
 
 #Throttling means:Limiting how many requests a user can make in a given time.Example:Only 5 login attempts per minute,Only 3 OTP requests per minute
@@ -56,15 +57,15 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES':(
         'rest_framework.permissions.IsAuthenticated',),
     'DEFAULT_THROTTLE_CLASSES':
-    ['rest_framework.throttling.UserRateThrottle',
+    ['rest_framework.throttling.UserRateThrottle', 
      'rest_framework.throttling.AnonRateThrottle',],
     'DEFAULT_THROTTLE_RATES': {
         'user': '50/day',  # Authenticated users can make 50 requests per day
         'anon': '20/day',  # Unauthenticated users can make 20 requests per day
         'otp': '3/day',  # OTP requests are limited to 3 per day
+    },    
     'DEFAULT_PAGINATION_CLASS':'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE':5,    
-    }
+    'PAGE_SIZE':5,        
 }
 SPECTACULAR_SETTINGS={
     'TITLE':'Product Management System ',
